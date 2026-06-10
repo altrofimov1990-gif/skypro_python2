@@ -43,7 +43,6 @@ class TestShopPurchase:
             self.wait.until(EC.url_contains("inventory"))
 
             # Шаг 3: Добавление товаров в корзину
-            # Sauce Labs Backpack — используем более надёжный селектор
             backpack_add_button = self.wait.until(
                 EC.element_to_be_clickable((By.XPATH,
                     "//div[contains(text(), 'Sauce Labs Backpack')]/following::button[contains(text(), 'Add to cart')]"))

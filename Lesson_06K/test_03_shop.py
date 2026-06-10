@@ -69,7 +69,7 @@ class TestShopPurchase:
             )
             cart_link.click()
 
-            # Шаг 5: Нажатие Checkout
+            # Шаг 5: Нажатие Checkout.
             checkout_button = self.wait.until(
                 EC.element_to_be_clickable((By.ID, "checkout"))
             )

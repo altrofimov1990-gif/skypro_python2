@@ -38,8 +38,8 @@ class TestCalculator:
             )
             button.click()
 
-        # Ожидание результата в течение 45 секунд (с запасом — 50 секунд)
-        result_element = WebDriverWait(self.driver, 50).until(
+        # Ожидание результата в течение 45 секунд
+        result_element = WebDriverWait(self.driver, 45).until(
             EC.text_to_be_present_in_element((By.CSS_SELECTOR, ".screen"), "15")
         )
 

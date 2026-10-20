@@ -3,6 +3,7 @@ import os
 import time
 from typing import Any
 from uuid import uuid4
+from pages.schedule_page import SchedulePage
 
 import allure
 import pytest
@@ -11,7 +12,14 @@ from api_client import SkyengApiClient
 from config import LOGIN, PASSWORD, SKIP_UI_LOGIN
 from pages.login_page import LoginPage
 from pages.schedule_page import SchedulePage
+import logging
+import allure
+from pages.schedule_page import SchedulePage
 
+class TestSchedule:
+    @pytest.mark.ui
+    def test_create_event_via_ui(self, schedule_page: SchedulePage):
+        logging.info("Starting test create event via UI")
 requires_api = pytest.mark.skipif(
     os.getenv("API_READY", "false") != "true",
     reason="Ждём подтверждённый эндпоинт создания события из DevTools",
@@ -25,13 +33,15 @@ class TestLogin:
     def test_login_with_valid_credentials(self, driver: Any) -> None:
         page: LoginPage = LoginPage(driver)
         page.open()
-        time.sleep(3)
         page.login(LOGIN, PASSWORD)
         with allure.step("Проверить, что выполнен вход в кабинет"):
             assert page.is_logged_in(), (
                 f"После входа URL не покинул страницу логина: {driver.current_url}"
             )
-
+class TestSchedule:
+    @pytest.mark.ui
+    def test_create_event_via_ui(self, schedule_page: SchedulePage):
+        logging.info("Starting test create event via UI")
 
 class TestSchedule:
     @pytest.mark.ui
@@ -46,9 +56,10 @@ class TestSchedule:
     @pytest.mark.ui
     @requires_api
     @allure.title("UI: создание личного события через интерфейс")
-    def test_create_event_via_ui(self, schedule_page: SchedulePage,
-                                 api_client: SkyengApiClient) -> None:
-        from data_utils import next_day_period
+    @pytest.mark.ui
+    def test_create_event_via_ui(self, schedule_page: SchedulePage):
+        logging.info("Starting test create event via UI")
+
         period = next_day_period()
         title: str = f"Autotest UI {uuid4().hex[:8]}"
         with allure.step("Создать событие через интерфейс"):
@@ -81,6 +92,8 @@ class TestSchedule:
                 f"Событие не переименовано в '{new_title}'"
 
     @pytest.mark.ui
+    def test_create_event_via_ui(self, schedule_page: SchedulePage):
+        logging.info("Starting test create event via UI")
     @requires_api
     @allure.title("UI: удаление события")
     def test_delete_event(self, schedule_page: SchedulePage,

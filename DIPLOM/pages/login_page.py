@@ -4,10 +4,11 @@ from typing import Any, Tuple
 import allure
 import pytest
 from selenium.webdriver.common.by import By
-
+from pages.base_page import BasePage
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from config import AUTH_CODE
-from pages.base_page import BasePage, Locator
-
+from pages.base_page import BasePage
 
 class LoginPage(BasePage):
     """Форма входа Skyeng ID: email/телефон -> одноразовый код."""
@@ -23,11 +24,20 @@ class LoginPage(BasePage):
         By.XPATH, "//button[@type='submit' and contains(@class, 'button--primary')]",
     )
 
+    def __init__(self, driver):
+        super().__init__(driver)
+
     def open(self) -> "LoginPage":
         with allure.step("Открыть страницу входа Skyeng ID"):
             self.driver.get("https://id.skyeng.ru/login")
         return self
 
+    def type_text(self, locator, text):
+        self.wait.until(EC.element_to_be_clickable(locator)).send_keys(text)
+
+    def request_code(self, identity: str) -> None:
+        with allure.step("Ввести почту/телефон и запросить код"):
+            self.type_text(self.IDENTITY_INPUT, identity)
     def request_code(self, identity: str) -> None:
         with allure.step("Ввести почту/телефон и запросить код"):
             self.type_text(self.IDENTITY_INPUT, identity)

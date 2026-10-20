@@ -13,6 +13,10 @@ from selenium.webdriver.support.ui import WebDriverWait
 from config import SCHEDULE_PATH
 from pages.base_page import BasePage, Locator
 from selenium.webdriver.common.by import By
+from pages.base_page import BasePage
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from pages.base_page import BasePage
 
 class SchedulePage(BasePage):
     CREATE_BUTTON: Tuple[str, str] = (By.XPATH, '//button[contains(., "Создать") or contains(., "событие")]')
@@ -22,6 +26,9 @@ class SchedulePage(BasePage):
     EDIT_BUTTON: Tuple[str, str] = (By.XPATH, '//button[contains(., "Редактировать") or contains(., "Изменить")]')
     NEXT_WEEK_BUTTON: Tuple[str, str] = (By.XPATH, '//*[@aria-label="Следующая неделя" or contains(@class, "next")]')
     PREV_WEEK_BUTTON: Tuple[str, str] = (By.XPATH, '//*[@aria-label="Прошлая неделя" or contains(@class, "prev")]')
+
+    def __init__(self, driver):
+        super().__init__(driver)
 
     def open(self) -> "SchedulePage":
         with allure.step("Открыть страницу «Расписание»"):
@@ -36,8 +43,14 @@ class SchedulePage(BasePage):
         self.type_text(self.TITLE_INPUT, title)
         self.click(self.SAVE_BUTTON)
 
-    def event_locator(self, title: str) -> Locator:
-        return (By.XPATH, f'//div[contains(text(), "{title}")]')
+    def open_event(self, title):
+        logging.info(f"Trying to open event: {title}")
+        self.wait.until(EC.presence_of_element_located(self.EVENT_LIST))
+        self.wait.until(EC.element_to_be_clickable(self.event_locator(title)))
+        self.click(self.event_locator(title))
+
+    def event_locator(self, title):
+        return ('xpath', f"//div[contains(text(), '{title}')]")
 
     def has_event(self, title: str) -> bool:
         try:

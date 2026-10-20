@@ -1,10 +1,11 @@
 """API-автотесты расписания кабинета учителя Skyeng."""
 from typing import Any, Dict
 from uuid import uuid4
+from api_client import SkyengApiClient
 
 import allure
 import pytest
-
+import logging
 from api_client import SkyengApiClient
 from config import API_BASE_URL
 from data_utils import next_day_period
@@ -15,6 +16,7 @@ from data_utils import next_day_period
 class TestCreatePersonalEvent:
 
     @allure.title("API: создание личного события с валидными данными возвращает id")
+    @allure.title("API: создание личного события с валидными данными возвращает id")
     def test_create_event_returns_id(self, api_client: SkyengApiClient) -> None:
         period: Dict[str, str] = next_day_period()
         title: str = f"Autotest API {uuid4().hex[:8]}"
@@ -23,8 +25,7 @@ class TestCreatePersonalEvent:
                 title, period["start"], period["end"]
             )
         with allure.step("Проверить статус-код и наличие id в ответе"):
-            assert response.status_code == 200, \
-                f"Ожидался 200, получен {response.status_code}"
+            assert response.status_code == 200, f"Ожидался 200, получен {response.status_code}"
             event_id = SkyengApiClient.extract_event_id(response.json())
             assert event_id is not None, "id события отсутствует в ответе"
         with allure.step("Очистка данных: удалить созданное событие"):
@@ -54,6 +55,10 @@ class TestCreatePersonalEvent:
                 f"Ожидался 4xx, получен {response.status_code}"
             body: Dict[str, Any] = response.json()
             assert body.get("errors"), "Ожидали ошибку в конверте, получили errors=null"
+
+    @allure.title("API: проверка создания события")
+    def test_create_event(self, api_client: SkyengApiClient) -> None:
+        logging.info("Starting test create event")
 
     @allure.title("API: событие с концом раньше начала отклоняется валидацией")
     def test_create_end_before_start_is_rejected(self, api_client: SkyengApiClient) -> None:

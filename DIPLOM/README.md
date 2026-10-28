@@ -15,4 +15,3 @@ pytest -m "api" --alluredir=allure-results    # только API-тесты
 pytest --alluredir=allure-results             # все тесты
 allure serve allure-results                   # просмотр отчёта
 
-Ссылка на итоговую страницу работы: <ссылка на Yonote>

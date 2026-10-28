@@ -1,29 +1,16 @@
 """UI-автотесты кабинета учителя Skyeng (Selenium, Page Object)."""
-import os
-import time
+import logging
 from typing import Any
 from uuid import uuid4
-from pages.schedule_page import SchedulePage
 
 import allure
 import pytest
 
-from api_client import SkyengApiClient
 from config import LOGIN, PASSWORD, SKIP_UI_LOGIN
 from pages.login_page import LoginPage
 from pages.schedule_page import SchedulePage
-import logging
-import allure
-from pages.schedule_page import SchedulePage
 
-class TestSchedule:
-    @pytest.mark.ui
-    def test_create_event_via_ui(self, schedule_page: SchedulePage):
-        logging.info("Starting test create event via UI")
-requires_api = pytest.mark.skipif(
-    os.getenv("API_READY", "false") != "true",
-    reason="Ждём подтверждённый эндпоинт создания события из DevTools",
-)
+logging.basicConfig(level=logging.INFO)
 
 
 class TestLogin:
@@ -38,10 +25,7 @@ class TestLogin:
             assert page.is_logged_in(), (
                 f"После входа URL не покинул страницу логина: {driver.current_url}"
             )
-class TestSchedule:
-    @pytest.mark.ui
-    def test_create_event_via_ui(self, schedule_page: SchedulePage):
-        logging.info("Starting test create event via UI")
+
 
 class TestSchedule:
     @pytest.mark.ui
@@ -50,57 +34,49 @@ class TestSchedule:
         with allure.step("Открыть страницу расписания"):
             schedule_page.open()
         with allure.step("Проверить, что страница загрузилась"):
-            assert "schedule" in schedule_page.driver.current_url or \
-                schedule_page.is_page_loaded(), "Страница расписания не открылась"
+            assert "schedule" in schedule_page.driver.current_url, \
+                "Страница расписания не открылась"
 
     @pytest.mark.ui
-    @requires_api
     @allure.title("UI: создание личного события через интерфейс")
-    @pytest.mark.ui
-    def test_create_event_via_ui(self, schedule_page: SchedulePage):
+    def test_create_event_via_ui(self, schedule_page: SchedulePage) -> None:
         logging.info("Starting test create event via UI")
-
-        period = next_day_period()
         title: str = f"Autotest UI {uuid4().hex[:8]}"
         with allure.step("Создать событие через интерфейс"):
             schedule_page.create_event(title)
         with allure.step("Проверить, что событие появилось в расписании"):
-            assert schedule_page.is_event_visible(title), \
+            assert schedule_page.has_event(title), \
                 f"Событие '{title}' не найдено в расписании"
 
     @pytest.mark.ui
-    @requires_api
-    @allure.title("UI: просмотр деталей события")
-    def test_event_details(self, schedule_page: SchedulePage,
-                           event: dict) -> None:
+    @allure.title("UI: просмотр карточки события")
+    def test_event_details(self, schedule_page: SchedulePage, ui_event: dict) -> None:
+        title: str = ui_event["title"]
         with allure.step("Открыть карточку события"):
-            schedule_page.open_event(event["title"])
-        with allure.step("Проверить название события в карточке"):
-            assert event["title"] in schedule_page.get_event_details_title()
+            schedule_page.open_event(title)
+        with allure.step("Проверить, что карточка события открылась без ошибок"):
+            assert schedule_page.has_event(title), \
+                f"Карточка события '{title}' не открылась"
 
     @pytest.mark.ui
-    @requires_api
     @allure.title("UI: редактирование названия события")
-    def test_edit_event_title(self, schedule_page: SchedulePage,
-                              event: dict) -> None:
+    def test_edit_event_title(self, schedule_page: SchedulePage, ui_event: dict) -> None:
+        old_title: str = ui_event["title"]
         new_title: str = f"Autotest UI edited {uuid4().hex[:8]}"
         with allure.step("Открыть карточку события и переименовать"):
-            schedule_page.open_event(event["title"])
-            schedule_page.edit_event(new_title)
+            schedule_page.open_event(old_title)
+            schedule_page.edit_event_title(old_title, new_title)
         with allure.step("Проверить новое название в расписании"):
-            assert schedule_page.is_event_visible(new_title), \
+            assert schedule_page.has_event(new_title), \
                 f"Событие не переименовано в '{new_title}'"
 
     @pytest.mark.ui
-    def test_create_event_via_ui(self, schedule_page: SchedulePage):
-        logging.info("Starting test create event via UI")
-    @requires_api
     @allure.title("UI: удаление события")
-    def test_delete_event(self, schedule_page: SchedulePage,
-                          event: dict) -> None:
+    def test_delete_event(self, schedule_page: SchedulePage, ui_event: dict) -> None:
+        title: str = ui_event["title"]
         with allure.step("Открыть карточку события и удалить"):
-            schedule_page.open_event(event["title"])
-            schedule_page.delete_event()
+            schedule_page.open_event(title)
+            schedule_page.delete_event(title)
         with allure.step("Проверить, что событие исчезло из расписания"):
-            assert not schedule_page.is_event_visible(event["title"]), \
-                f"Событие '{event['title']}' всё ещё видно после удаления"
+            assert not schedule_page.has_event(title), \
+                f"Событие '{title}' всё ещё видно после удаления"

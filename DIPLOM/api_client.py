@@ -1,39 +1,52 @@
+import logging
 import requests
-from typing import Any, Dict, Optional
-from datetime import datetime
+
 
 class SkyengApiClient:
-    def __init__(self, base_url: str, token: str):
-        self.base_url = base_url
-        self.token = token
-        self.session = requests.Session()  # Добавляем создание сессии
+    def __init__(self, base_url: str, token: str) -> None:
+        self.base_url = base_url.rstrip("/")
+        self.session = requests.Session()
         self.session.headers.update({
-            'Authorization': f'Bearer {self.token}',
-            'Content-Type': 'application/json'
+            "Cookie": f"token_global={token}",
+            "Origin": "https://teachers.skyeng.ru",
+            "Referer": "https://teachers.skyeng.ru/",
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/140.0.0.0 Safari/537.36"
+            ),
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/plain, */*",
         })
 
-    def create_personal_event(
-        self, 
-        title: str, 
-        start: str, 
-        end: str
-    ) -> requests.Response:
-        url = f"{self.base_url}/events"
+    def create_personal_event(self, title: str, start: str, end: str) -> requests.Response:
+        url = f"{self.base_url}/schedule/createPersonal"
         payload = {
             "title": title,
             "startAt": start,
-            "endAt": end
+            "endAt": end,
+            "description": "",
+            "backgroundColor": "#f95313",
+            "color": "#020107",
         }
-        return self.session.post(url, json=payload)
+        response = self.session.post(url, json=payload)
+        logging.info("Request to %s returned %s: %s", url, response.status_code, response.text[:300])
+        return response
 
-    def delete_event(self, event_id: int) -> requests.Response:
-        url = f"{self.base_url}/events/{event_id}"
-        return self.session.delete(url)
+    def get_events(self, from_dt: str, till_dt: str) -> requests.Response:
+        url = f"{self.base_url}/schedule/events"
+        payload = {"from": from_dt, "till": till_dt, "onlyTypes": []}
+        response = self.session.post(url, json=payload)
+        logging.info("Request to %s returned %s: %s", url, response.status_code, response.text[:300])
+        return response
+
+    def delete_event(self, event_id) -> requests.Response:
+        url = f"{self.base_url}/schedule/removePersonal"
+        response = self.session.post(url, json={"id": event_id})
+        logging.info("Request to %s returned %s: %s", url, response.status_code, response.text[:300])
+        return response
 
     @staticmethod
-    def extract_event_id(response_data: Dict[str, Any]) -> Optional[int]:
-        return response_data.get('id')
-
-    def get_events(self) -> requests.Response:
-        url = f"{self.base_url}/events"
-        return self.session.get(url)
+    def extract_event_id(body: dict):
+        data = body.get("data") or {}
+        return data.get("id") or data.get("eventId")

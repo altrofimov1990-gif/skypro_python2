@@ -1,11 +1,11 @@
 """API-автотесты расписания кабинета учителя Skyeng."""
 from typing import Any, Dict
 from uuid import uuid4
-from api_client import SkyengApiClient
 
 import allure
 import pytest
 import logging
+
 from api_client import SkyengApiClient
 from config import API_BASE_URL
 from data_utils import next_day_period
@@ -16,7 +16,6 @@ from data_utils import next_day_period
 class TestCreatePersonalEvent:
 
     @allure.title("API: создание личного события с валидными данными возвращает id")
-    @allure.title("API: создание личного события с валидными данными возвращает id")
     def test_create_event_returns_id(self, api_client: SkyengApiClient) -> None:
         period: Dict[str, str] = next_day_period()
         title: str = f"Autotest API {uuid4().hex[:8]}"
@@ -24,12 +23,19 @@ class TestCreatePersonalEvent:
             response = api_client.create_personal_event(
                 title, period["start"], period["end"]
             )
-        with allure.step("Проверить статус-код и наличие id в ответе"):
+        with allure.step("Проверить конверт и наличие id в ответе"):
             assert response.status_code == 200, f"Ожидался 200, получен {response.status_code}"
-            event_id = SkyengApiClient.extract_event_id(response.json())
-            assert event_id is not None, "id события отсутствует в ответе"
+            body: Dict[str, Any] = response.json()
+            assert not body.get("errors"), f"Ожидали успех, получили errors: {body.get('errors')}"
+            info = SkyengApiClient.extract_event_info(body)
+            assert info["eventId"], "eventId отсутствует в ответе"
+            assert info["id"], "числовой id отсутствует в ответе"
         with allure.step("Очистка данных: удалить созданное событие"):
-            api_client.delete_event(event_id)
+            delete_response = api_client.delete_event(info["id"], info["startAt"])
+            delete_body = delete_response.json()
+            assert not delete_body.get("errors"), (
+                f"Удаление вернуло errors: {delete_body.get('errors')}"
+            )
 
     @allure.title("API: запрос без токена возвращает 401")
     def test_create_without_token_returns_401(self) -> None:
@@ -50,11 +56,14 @@ class TestCreatePersonalEvent:
             response = api_client.create_personal_event(
                 "", period["start"], period["end"]
             )
-        with allure.step("Проверить ошибку валидации"):
-            assert 400 <= response.status_code < 500, \
-                f"Ожидался 4xx, получен {response.status_code}"
+        with allure.step("Проверить ошибку валидации в конверте"):
+            assert response.status_code == 200, \
+                f"Ожидался 200 с ошибкой в конверте, получен {response.status_code}"
             body: Dict[str, Any] = response.json()
-            assert body.get("errors"), "Ожидали ошибку в конверте, получили errors=null"
+            assert body.get("errors"), "Ожидали errors в конверте"
+            assert any(
+                e.get("property") == "title" for e in body["errors"]
+            ), f"Ожидали ошибку по полю title, получили: {body['errors']}"
 
     @allure.title("API: проверка создания события")
     def test_create_event(self, api_client: SkyengApiClient) -> None:
@@ -67,11 +76,16 @@ class TestCreatePersonalEvent:
             response = api_client.create_personal_event(
                 "Backwards time", period["end"], period["start"]
             )
-        with allure.step("Проверить ошибку валидации времени"):
-            assert 400 <= response.status_code < 500, \
-                f"Ожидался 4xx, получен {response.status_code}"
+        with allure.step("Проверить domain_error в конверте"):
+            assert response.status_code == 200, \
+                f"Ожидался 200 с ошибкой в конверте, получен {response.status_code}"
             body = response.json()
-            assert body.get("errors") or body.get("message"), "В ответе нет описания ошибки"
+            assert body.get("errors"), "Ожидали errors в конверте"
+            assert any(
+                e.get("property") == "startAt"
+                and e.get("error", {}).get("code") == "domain_error"
+                for e in body["errors"]
+            ), f"Ожидали domain_error по startAt, получили: {body['errors']}"
 
 
 @pytest.mark.api
@@ -79,6 +93,16 @@ class TestCreatePersonalEvent:
 class TestGetEvents:
 
     @allure.title("API: созданное событие присутствует в списке за период")
-    def test_created_event_in_list(self, api_client: SkyengApiClient,
-                                  event: Dict[str, Any]) -> None:
-        period: Dict
+    def test_created_event_in_list(
+        self, api_client: SkyengApiClient, event: Dict[str, Any]
+    ) -> None:
+        with allure.step("Запросить расписание на период события"):
+            response = api_client.get_events(event["from"], event["till"])
+        with allure.step("Проверить, что событие в списке"):
+            assert response.status_code == 200, \
+                f"Ожидался 200, получен {response.status_code}"
+            body = response.json()
+            events = (body.get("data") or {}).get("events") or []
+            assert any(
+                ev.get("eventId") == event["eventId"] for ev in events
+            ), f"Событие {event['eventId']} не найдено в списке за период"

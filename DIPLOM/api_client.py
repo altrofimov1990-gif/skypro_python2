@@ -40,13 +40,21 @@ class SkyengApiClient:
         logging.info("Request to %s returned %s: %s", url, response.status_code, response.text[:300])
         return response
 
-    def delete_event(self, event_id) -> requests.Response:
+    def delete_event(self, event_id: int, start: str) -> requests.Response:
+        """Удаление требует числовой id (payload.id) и startAt события."""
         url = f"{self.base_url}/schedule/removePersonal"
-        response = self.session.post(url, json={"id": event_id})
+        payload = {"id": event_id, "startAt": start}
+        response = self.session.post(url, json=payload)
         logging.info("Request to %s returned %s: %s", url, response.status_code, response.text[:300])
         return response
 
     @staticmethod
-    def extract_event_id(body: dict):
+    def extract_event_info(body: dict) -> dict:
+        """Возвращает eventId (строковый), числовой id и startAt из ответа на создание."""
         data = body.get("data") or {}
-        return data.get("id") or data.get("eventId")
+        payload = data.get("payload") or {}
+        return {
+            "eventId": data.get("eventId"),
+            "id": payload.get("id"),
+            "startAt": data.get("startAt"),
+        }

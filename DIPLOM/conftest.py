@@ -75,16 +75,26 @@ def event(api_client: SkyengApiClient) -> Iterator[Dict[str, Any]]:
     title: str = f"Autotest API {uuid4().hex[:8]}"
     with allure.step("Подготовка: создание события через API"):
         response = api_client.create_personal_event(title, period["start"], period["end"])
-        try:
-            assert response.status_code == 200, (
-                f"Создание события вернуло {response.status_code}: {response.text[:300]}"
-            )
-        except AssertionError as e:
-            print("Ошибка создания события:", response.text)
-            raise e
         body: Dict[str, Any] = response.json()
-        event_id = SkyengApiClient.extract_event_id(body)
-        assert event_id is not None, f"В ответе нет id события: {body}"
-    yield {"id": event_id, "title": title, "period": period}
-    with allure.step("Очистка: удаление события"):
-        api_client.delete_event(event_id)
+        assert response.status_code == 200 and not body.get("errors"), (
+            f"Создание события вернуло: {response.status_code} {response.text[:300]}"
+        )
+        info = SkyengApiClient.extract_event_info(body)
+        assert info["eventId"] and info["id"] and info["startAt"], (
+            f"В ответе нет полей для работы с событием: {body}"
+        )
+    yield {
+        "eventId": info["eventId"],
+        "id": info["id"],
+        "startAt": info["startAt"],
+        "title": title,
+        "from": period["start"],
+        "till": period["end"],
+    }
+    with allure.step("Очистка: удаление события через API"):
+        delete_response = api_client.delete_event(info["id"], info["startAt"])
+        delete_body = delete_response.json()
+        if delete_body.get("errors"):
+            logging.warning(
+                "Не удалось удалить событие %s: %s", info["eventId"], delete_body["errors"]
+            )
